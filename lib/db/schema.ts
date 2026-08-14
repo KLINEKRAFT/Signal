@@ -170,7 +170,43 @@ export const analyses = pgTable(
   (t) => [index('analyses_job_idx').on(t.jobId, t.isCurrent)],
 );
 
+export const derivativeKind = pgEnum('derivative_kind', [
+  'email',
+  'social_post',
+  'training_handout',
+]);
+
+/**
+ * Pieces written *from* a finished recap rather than from the recording: an
+ * email to send, a post to publish, a handout to teach from.
+ *
+ * One row per job per kind — regenerating replaces rather than accumulating,
+ * because unlike a recap (where the previous output type is worth keeping)
+ * nobody wants a history of draft emails.
+ */
+export const derivatives = pgTable(
+  'derivatives',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    jobId: uuid('job_id')
+      .notNull()
+      .references(() => jobs.id, { onDelete: 'cascade' }),
+    kind: derivativeKind('kind').notNull(),
+
+    // `title` is the email subject, the post's opening line, or the handout
+    // title depending on kind. `body` is Markdown in every case.
+    title: text('title'),
+    body: text('body').notNull(),
+    model: text('model'),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('derivatives_job_kind_idx').on(t.jobId, t.kind)],
+);
+
 export type Job = typeof jobs.$inferSelect;
+export type Derivative = typeof derivatives.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
 export type Transcript = typeof transcripts.$inferSelect;
 export type TranscriptSegment = typeof transcriptSegments.$inferSelect;

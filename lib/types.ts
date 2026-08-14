@@ -73,6 +73,13 @@ export interface JobPayload {
     text: string;
     sequence: number;
   }[];
+  derivatives: {
+    kind: string;
+    title: string | null;
+    body: string;
+    model: string | null;
+    createdAt: string;
+  }[];
   analysis: {
     id: string;
     outputType: string;

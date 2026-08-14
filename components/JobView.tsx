@@ -11,9 +11,11 @@ import { TranscriptView } from './TranscriptView';
 import { TakeawaysView } from './TakeawaysView';
 import { QuotesView } from './QuotesView';
 import { DetailsView } from './DetailsView';
+import { GenerateView } from './GenerateView';
 import { ExportMenu } from './ExportMenu';
 import { MediaPlayer } from './MediaPlayer';
 import { formatDuration, sourceLabel } from '@/lib/format';
+import type { DerivativeKind } from '@/lib/analysis/kinds';
 
 const LIVE: JobStatus[] = ['created', 'uploading', 'uploaded', 'transcribing', 'analyzing'];
 
@@ -23,6 +25,7 @@ export function JobView({ initial }: { initial: JobPayload }) {
   const [regenerating, setRegenerating] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [derivingKind, setDerivingKind] = useState<DerivativeKind | null>(null);
 
   const mediaRef = useRef<HTMLMediaElement | null>(null);
   const segmentRefs = useRef(new Map<number, HTMLElement>());
@@ -160,6 +163,28 @@ export function JobView({ initial }: { initial: JobPayload }) {
         setActionError(e instanceof Error ? e.message : 'The recap could not be regenerated.');
       } finally {
         setRegenerating(false);
+      }
+    },
+    [payload.job.id],
+  );
+
+  const generate = useCallback(
+    async (kind: DerivativeKind) => {
+      setDerivingKind(kind);
+      setActionError(null);
+      try {
+        const res = await fetch(`/api/jobs/${payload.job.id}/derive`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kind }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error ?? 'That output could not be generated.');
+        setPayload(body as JobPayload);
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : 'That output could not be generated.');
+      } finally {
+        setDerivingKind(null);
       }
     },
     [payload.job.id],
@@ -323,6 +348,15 @@ export function JobView({ initial }: { initial: JobPayload }) {
 
         {tab === 'takeaways' ? <TakeawaysView payload={payload} onSeek={seek} /> : null}
         {tab === 'quotes' ? <QuotesView payload={payload} onSeek={seek} /> : null}
+
+        {tab === 'generate' ? (
+          <GenerateView
+            payload={payload}
+            onGenerate={generate}
+            busyKind={derivingKind}
+            error={actionError}
+          />
+        ) : null}
         {tab === 'details' ? <DetailsView payload={payload} /> : null}
       </div>
     </div>
