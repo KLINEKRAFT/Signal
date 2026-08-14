@@ -1,18 +1,19 @@
 'use client';
 
-export type TabKey = 'recap' | 'transcript' | 'takeaways' | 'quotes' | 'details';
+export type TabKey = 'recap' | 'transcript' | 'takeaways' | 'quotes' | 'generate' | 'details';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'recap', label: 'RECAP' },
   { key: 'transcript', label: 'TRANSCRIPT' },
   { key: 'takeaways', label: 'TAKEAWAYS' },
   { key: 'quotes', label: 'QUOTES' },
+  { key: 'generate', label: 'GENERATE' },
   { key: 'details', label: 'DETAILS' },
 ];
 
 /**
  * Horizontally scrollable on phones rather than wrapped or collapsed into a
- * select — five short labels stay legible and tappable that way, and the
+ * select — six short labels stay legible and tappable that way, and the
  * active tab is never hidden behind a menu.
  */
 export function ResultTabs({

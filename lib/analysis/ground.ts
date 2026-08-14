@@ -110,6 +110,47 @@ function clampTimestamp(
   return { startMs, endMs };
 }
 
+/**
+ * Checks quoted spans inside generated prose — an email, a post, a handout.
+ *
+ * Structured analysis hands quotes over in their own field, where an
+ * unverifiable one can simply be dropped. Prose is different: the quote is
+ * embedded in a sentence that would break if it were removed. So a span that
+ * cannot be found in the transcript keeps its words and loses its quotation
+ * marks, which leaves the writing readable while no longer asserting that
+ * anyone said it in exactly those words.
+ *
+ * Short spans are left alone. A two-word phrase in quotes is scare-quoting or
+ * a defined term, not a claim of verbatim speech.
+ */
+export function verifyQuotedSpans(
+  text: string,
+  segments: GroundingSegment[],
+): { text: string; unverified: string[] } {
+  if (!segments.length) return { text, unverified: [] };
+
+  const index = buildIndex(segments);
+  const unverified: string[] = [];
+
+  // Straight and curly double quotes. A quotation may wrap across lines in
+  // Markdown, so single newlines are allowed inside a span — but a blank line
+  // ends it, because that is a paragraph break rather than a long quote, and
+  // matching across it would swallow unrelated prose.
+  const quoted = /(["“])((?:[^"“”\n]|\n(?!\s*\n))+)(["”])/g;
+
+  const out = text.replace(quoted, (whole, _open: string, inner: string) => {
+    // Too short to be a claim of verbatim speech — scare quotes or a defined
+    // term. Too long to be anything a model should be quoting wholesale.
+    if (inner.trim().length < 12 || inner.length > 400) return whole;
+
+    if (locateQuote(index, inner)) return whole;
+    unverified.push(inner.replace(/\s+/g, ' ').trim());
+    return inner;
+  });
+
+  return { text: out, unverified };
+}
+
 export type GroundingReport = {
   quotesProposed: number;
   quotesKept: number;

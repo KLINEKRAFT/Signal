@@ -1,6 +1,6 @@
 import { asc, desc, eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { analyses, jobs, speakers, transcriptSegments, transcripts } from './schema';
+import { analyses, derivatives, jobs, speakers, transcriptSegments, transcripts } from './schema';
 import type { JobPayload } from '@/lib/types';
 
 /** The JSONB columns are untyped at the driver; this is their real shape. */
@@ -34,6 +34,11 @@ export async function loadJob(id: string): Promise<JobPayload | null> {
         .where(eq(transcriptSegments.transcriptId, transcript.id))
         .orderBy(asc(transcriptSegments.sequence))
     : [];
+
+  const derivativeRows = await db
+    .select()
+    .from(derivatives)
+    .where(eq(derivatives.jobId, id));
 
   const [analysis] = await db
     .select()
@@ -79,6 +84,13 @@ export async function loadJob(id: string): Promise<JobPayload | null> {
       endMs: s.endMs,
       text: s.text,
       sequence: s.sequence,
+    })),
+    derivatives: derivativeRows.map((d) => ({
+      kind: d.kind,
+      title: d.title,
+      body: d.body,
+      model: d.model,
+      createdAt: d.createdAt.toISOString(),
     })),
     analysis: analysis
       ? {

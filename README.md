@@ -33,6 +33,7 @@ Drop a recording in. Come back to something useful.
 | 2 | AssemblyAI, transcript storage, segments, diarization, renaming | **Built** |
 | 3 | AI analysis, summary, takeaways, quotes, actions, timestamp grounding | **Built** |
 | 4 | PDF / DOCX / TXT / Markdown export, history, retention controls | **Built** |
+| 5 | Generated email, social post, and training handout from a recap | **Built** |
 
 Builds clean on Next 16.3, React 19.2, Tailwind 4.3, `@vercel/blob` 2.8, AI SDK 7.
 
@@ -72,8 +73,8 @@ app/
   page.tsx                 Upload screen
   jobs/[id]/page.tsx       Processing and results
   history/page.tsx         Previous jobs
-  api/jobs/                Create, read, rename, delete, analysis, retry,
-                           speakers, segments, media, export
+  api/jobs/                Create, read, rename, delete, analysis, derive,
+                           retry, speakers, segments, media, export
   api/transcription/       Provider webhook
   api/upload/              Client-upload token minting only
   api/cron/retention/      Daily source-media sweep
@@ -83,7 +84,7 @@ lib/
   storage/                 Blob paths, signed URLs, deletion, retention
   media/                   The one decision the pipeline makes
   transcription/           Provider interface + AssemblyAI adapter + cleaning
-  analysis/                Prompts, structured output, grounding
+  analysis/                Prompts, structured output, grounding, derived outputs
   exports/                 One document model, four renderers
   pipeline.ts              The job state machine
   types.ts                 Provider-neutral shapes
@@ -178,6 +179,21 @@ One format-neutral document model (`lib/exports/document.ts`) feeds four
 renderers, so Markdown, plain text, PDF, and DOCX cannot drift apart. PDF is
 rendered with `pdf-lib` — pure JS, no binaries, which is what makes it viable
 inside a serverless function.
+
+## Generated outputs
+
+The GENERATE tab writes an email, a social post, or a training handout **from
+the finished recap** rather than from the recording — the analysis has already
+been done, so re-reading a three-hour transcript to write a six-line email would
+be slower and worse. Each is on demand, since most recordings never need any of
+them.
+
+The transcript is still passed alongside the recap for one reason: quotes.
+Anything the model puts in quotation marks is checked against it, and a span
+that cannot be found keeps its words but loses its quotation marks — so the
+prose stays readable while nothing claims to be verbatim unless it is. Short
+spans are left alone, because a two-word phrase in quotes is a defined term
+rather than a claim about what someone said.
 
 ---
 
@@ -283,5 +299,4 @@ becomes a tool the brokerages depend on, that is a Pro-plan conversation.
 
 ## Roadmap
 
-Generated email, social post, and training handout from a completed recap.
 Speaker-level analytics. Real authentication when more than one person uses it.

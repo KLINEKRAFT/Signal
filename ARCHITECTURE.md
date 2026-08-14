@@ -166,6 +166,36 @@ Exports are generated on demand rather than stored. A recap is a few kilobytes
 and renders in milliseconds, so caching it in Blob would add a cache-invalidation
 problem — rename a speaker, regenerate a recap — in exchange for nothing.
 
+## Derived outputs
+
+The email, social post, and training handout are written **from the recap, not
+from the recording**. The expensive understanding step already ran; asking the
+model to redo it from the transcript for a six-line email would cost more and
+produce less.
+
+Three consequences worth knowing:
+
+- They are **on demand**, never part of processing. One model call for the
+  recordings that need one beats three for every recording that does not.
+- **One row per job per kind** — regenerating replaces. A previous *recap*
+  output type is worth keeping; a previous draft email is not.
+- Generating one **never touches job status**, so a failure here cannot disturb
+  a completed recording.
+
+The transcript is still supplied alongside the recap, for quotes alone.
+`verifyQuotedSpans()` checks every quoted span in the generated prose and, when
+one cannot be found, removes the quotation marks while keeping the words. That
+differs from the recap's rule — where an unverifiable quote is dropped outright
+— because a quote inside prose sits in a sentence that would break if it were
+removed. Unquoting keeps the piece readable and stops it asserting that anyone
+said those words exactly. Spans under twelve characters are ignored: quotes that
+short are defined terms or scare quotes, not claims about speech.
+
+Rendering uses a small in-house Markdown component rather than a parser plus a
+sanitiser. The model's output grammar is headings, bullets, bold, and rules —
+six constructs — and the component never renders HTML at all, so there is no
+sanitisation surface to get wrong.
+
 ## Deliberately not built
 
 Multi-tenant organizations, billing, roles, admin dashboards, teams, analytics,
