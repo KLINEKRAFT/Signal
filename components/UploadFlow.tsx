@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { upload } from '@vercel/blob/client';
+import { uploadPresigned } from '@vercel/blob/client';
 import { UploadDropzone } from './UploadDropzone';
 import { MediaPreview, type ProbedMedia } from './MediaPreview';
 import { RecordingContext, emptyContext, type ContextValue } from './RecordingContext';
@@ -21,15 +21,18 @@ type Phase = 'idle' | 'ready' | 'creating' | 'uploading' | 'handoff';
 /**
  * Turn an upload failure into something worth reading.
  *
- * @vercel/blob discards the response body when the token request fails, so
- * every server-side refusal — an unconfigured store, a duplicate upload, an
- * unknown job — reaches the browser as the same opaque "Failed to retrieve the
- * client token". The route records the real reason on the job before it
+ * @vercel/blob discards the response body when URL issuance fails, so every
+ * server-side refusal — an unreachable store, a duplicate upload, an unknown
+ * job — reaches the browser as the same opaque "Failed to retrieve the
+ * presigned URL". The route records the real reason on the job before it
  * returns, so ask the job rather than repeating the library's text.
  */
+const OPAQUE_SDK_FAILURE =
+  /retrieve the (presigned URL|client token)|missing presignedUrlPayload/i;
+
 async function explainFailure(error: unknown, jobId: string | null): Promise<string> {
   const fallback =
-    error instanceof Error && !/retrieve the client token/i.test(error.message)
+    error instanceof Error && !OPAQUE_SDK_FAILURE.test(error.message)
       ? error.message
       : 'The upload did not finish. Check your connection and try again.';
 
@@ -130,7 +133,9 @@ export function UploadFlow() {
       setPhase('uploading');
       setProgress({ loaded: 0, total: media.file.size, percentage: 0 });
 
-      const blob = await upload(mediaPathname(jobId, media.file.name), media.file, {
+      // Presigned, not client-token: the store is connected over OIDC and the
+      // client-token flow has no OIDC path. See app/api/upload/route.ts.
+      const blob = await uploadPresigned(mediaPathname(jobId, media.file.name), media.file, {
         // Private keeps recordings off public URLs. If your installed
         // @vercel/blob rejects this, see the note in lib/storage/blob.ts.
         access: BLOB_ACCESS,

@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/client';
+import {
+  handleUploadPresigned,
+  type HandleUploadPresignedBody,
+} from '@vercel/blob/client';
+import { issueSignedToken } from '@vercel/blob';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { jobs } from '@/lib/db/schema';
@@ -12,8 +16,8 @@ export const maxDuration = 60;
 /**
  * A refusal the uploader is allowed to read verbatim.
  *
- * Everything else that escapes this route is a fault on our side — a missing
- * store, a bad token, a database that will not answer — and its message is
+ * Everything else that escapes this route is a fault on our side — an
+ * unreachable store, a database that will not answer — and its message is
  * written for an operator reading logs, not for whoever is holding the file.
  */
 class UploadRejected extends Error {}
@@ -21,16 +25,27 @@ class UploadRejected extends Error {}
 const GENERIC_FAILURE =
   'The upload could not be authorized. Storage is not reachable right now.';
 
+const ALLOWED_CONTENT_TYPES = ['video/*', 'audio/*'];
+
+/**
+ * How long a presigned upload URL stays valid.
+ *
+ * The SDK would default to an hour. That is not enough here: the ceiling is
+ * 5 GB, and 5 GB over a 5 Mbps uplink is well past two hours. Four hours covers
+ * the worst realistic case without leaving a write-capable URL alive overnight.
+ */
+const UPLOAD_WINDOW_MS = 4 * 60 * 60 * 1000;
+
 /**
  * Recover the job id from whichever shape of request this is.
  *
- * Token requests carry it in clientPayload; the completion callback carries it
+ * URL issuance carries it in clientPayload; the completion callback carries it
  * in tokenPayload. Without it a failure leaves a job stranded in `created`,
  * which the history screen renders as AWAITING MEDIA forever.
  */
-function jobIdFromBody(body: HandleUploadBody): string | null {
+function jobIdFromBody(body: HandleUploadPresignedBody): string | null {
   try {
-    if (body.type === 'blob.generate-client-token') {
+    if (body.type === 'blob.generate-presigned-url') {
       return (body.payload.clientPayload ?? '').trim() || null;
     }
     if (body.type === 'blob.upload-completed') {
@@ -44,18 +59,27 @@ function jobIdFromBody(body: HandleUploadBody): string | null {
 }
 
 /**
- * Token minting only. Media bytes never pass through this function — the browser
- * uploads straight to Blob, which is what makes multi-gigabyte files possible on
- * a platform with a 4.5 MB request body limit.
+ * Presigned URL issuance only. Media bytes never pass through this function —
+ * the browser uploads straight to Blob, which is what makes multi-gigabyte
+ * files possible on a platform with a 4.5 MB request body limit.
+ *
+ * Presigned rather than client-token issuance because the Blob store is
+ * connected over OIDC. handleUpload mints client tokens by signing with
+ * BLOB_READ_WRITE_TOKEN and has no OIDC path at all, so it throws before it
+ * reaches any callback when the store is connected the modern way. The
+ * presigned flow signs with a short-lived delegation from issueSignedToken,
+ * which authenticates with VERCEL_OIDC_TOKEN + BLOB_STORE_ID and needs no
+ * long-lived secret.
  */
 export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
+  const body = (await request.json()) as HandleUploadPresignedBody;
 
   try {
-    const response = await handleUpload({
+    const response = await handleUploadPresigned({
       body,
       request,
-      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+
+      getSignedToken: async (pathname, clientPayload) => {
         const jobId = (clientPayload ?? '').trim();
         if (!jobId) throw new UploadRejected('Missing job reference.');
 
@@ -70,11 +94,28 @@ export async function POST(request: Request): Promise<NextResponse> {
           .set({ status: 'uploading', updatedAt: new Date() })
           .where(eq(jobs.id, jobId));
 
-        return {
-          allowedContentTypes: ['video/*', 'audio/*'],
+        const validUntil = Date.now() + UPLOAD_WINDOW_MS;
+
+        // The delegation and the URL are constrained identically on purpose:
+        // the token bounds what the signature can ever authorize, the url
+        // options bound this particular URL. Neither alone is the limit.
+        const token = await issueSignedToken({
+          pathname,
+          operations: ['put'],
+          allowedContentTypes: ALLOWED_CONTENT_TYPES,
           maximumSizeInBytes: MAX_UPLOAD_BYTES,
-          addRandomSuffix: false,
-          tokenPayload: JSON.stringify({ jobId }),
+          validUntil,
+        });
+
+        return {
+          token,
+          urlOptions: {
+            allowedContentTypes: ALLOWED_CONTENT_TYPES,
+            maximumSizeInBytes: MAX_UPLOAD_BYTES,
+            addRandomSuffix: false,
+            validUntil,
+            tokenPayload: JSON.stringify({ jobId }),
+          },
         };
       },
 
@@ -103,10 +144,8 @@ export async function POST(request: Request): Promise<NextResponse> {
   } catch (error) {
     const rejected = error instanceof UploadRejected;
 
-    // handleUpload resolves BLOB_READ_WRITE_TOKEN before it reaches
-    // onBeforeGenerateToken, so an unconfigured store throws here with the job
-    // still sitting in `created`. Log it: a swallowed 400 leaves nothing in the
-    // runtime logs, and the misconfiguration then looks like a silent no-op.
+    // A swallowed 400 leaves nothing in the runtime logs, and a misconfigured
+    // store then looks like a silent no-op rather than a failure.
     if (!rejected) console.error('[upload] could not authorize upload', error);
 
     const jobId = jobIdFromBody(body);
