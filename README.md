@@ -241,6 +241,12 @@ npm run db:push                # creates tables in Neon
 npm run dev
 ```
 
+`db:push` diffs the schema straight against the live database. `db:generate`
+instead writes a versioned migration to `drizzle/`, which is committed — use it
+when a schema change needs a reviewable diff or has to be replayed somewhere.
+The snapshots under `drizzle/meta/` are what lets `db:generate` compute the next
+migration as a delta, so they are tracked too.
+
 Open http://localhost:3000.
 
 **Three things to know locally:**
@@ -260,9 +266,12 @@ Open http://localhost:3000.
 2. Add `DATABASE_URL`, `ASSEMBLYAI_API_KEY`, `AI_GATEWAY_API_KEY`,
    `AI_ANALYSIS_MODEL`, `APP_URL`, and `TRANSCRIPTION_WEBHOOK_SECRET` under
    **Settings → Environment Variables**. `BLOB_READ_WRITE_TOKEN` appears
-   automatically when you connect the store, and `CRON_SECRET` when you add the
-   cron job in `vercel.json`.
-3. Deploy, then run `npm run db:push` once against the production database.
+   automatically when you connect the store. `CRON_SECRET` you create yourself —
+   Vercel does not generate it; it just forwards whatever you set as a bearer
+   token on each cron invocation.
+3. Deploy, then create the tables in the production database — either
+   `npm run db:push`, or paste `drizzle/0000_amused_jimmy_woo.sql` into the Neon
+   SQL Editor if you would rather not point a local shell at production.
 
 **The webhook must point at the production domain, not a preview URL.** Preview
 deployments sit behind Vercel Authentication and will reject the callback. That
