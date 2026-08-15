@@ -269,6 +269,36 @@ deployments sit behind Vercel Authentication and will reject the callback. That
 is what `APP_URL` is for; leave it unset and the app derives the production URL
 from Vercel's own environment.
 
+## Domain: signal.colinkline.com
+
+SIGNAL runs on its own subdomain rather than a path under the main site. It is an
+application with its own routes, and a subdomain needs no code: Next's `basePath`
+prefixes `<Link>` and `next/image` but **not** raw `fetch()` calls or plain
+`src`/`href` attributes, of which this app has seventeen. A path deploy would
+also put a proxy hop in front of the transcription webhook and the signed media
+redirect — two things that are currently direct.
+
+Setup, with DNS on Cloudflare and the main site hosted elsewhere:
+
+1. **Vercel → Settings → Domains** → add `signal.colinkline.com`. Vercel shows a
+   **project-specific** CNAME target (something like
+   `d1d4fc829fe7bc7c.vercel-dns-017.com`) — copy that exact value rather than the
+   older shared `cname.vercel-dns.com`.
+2. **Cloudflare → DNS** → add a `CNAME` record, name `signal`, pointing at that
+   target.
+3. **Set the record to `DNS only` — the grey cloud, not the orange one.** This is
+   the step that bites: with the proxy on, Cloudflare terminates SSL itself and
+   Vercel cannot provision its certificate, so the domain never verifies. It also
+   puts Cloudflare's bot protection in front of the AssemblyAI webhook, which is
+   an unauthenticated POST from a datacentre IP — exactly the shape those rules
+   block.
+4. Set `APP_URL=https://signal.colinkline.com` in Vercel's environment variables
+   and redeploy, so the webhook is registered against the right origin.
+
+The apex domain is untouched by all of this. To reach SIGNAL from the main site,
+add a nav link, or a redirect from `colinkline.com/signal` to the subdomain — the
+short path still works, without a proxy in the request path.
+
 ## Storage limits worth watching
 
 The Hobby plan includes **1 GB of Blob storage and 10 GB of transfer per month**,
