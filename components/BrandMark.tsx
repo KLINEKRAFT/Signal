@@ -74,12 +74,16 @@ export function MakerMark({ className = '' }: { className?: string }) {
   }
 
   return (
+    // Intrinsic dimensions are declared so the footer reserves the right space
+    // before the asset loads; `h-*`/`w-auto` then scales it from that ratio.
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={check}
-      src="/klinekraft-logo.svg"
+      src="/klinekraft-logo.png"
       alt="KLINEKRAFT"
-      className={`h-[11px] w-auto opacity-45 transition-opacity hover:opacity-80 ${className}`}
+      width={466}
+      height={127}
+      className={`h-4 w-auto opacity-45 transition-opacity hover:opacity-80 ${className}`}
       onError={() => setFailed(true)}
     />
   );
