@@ -49,14 +49,26 @@ async function claim(jobId: string, from: Job['status'], to: Job['status']): Pro
   return claimed ?? null;
 }
 
-async function fail(jobId: string, stage: string, error: unknown): Promise<void> {
-  const message =
-    error instanceof Error ? error.message : 'Something went wrong during processing.';
-
+/**
+ * Mark a job failed with a message the UI will show.
+ *
+ * `message` is read by a human in the results screen, so callers pass text
+ * written for that reader — never a raw provider or SDK error, which can carry
+ * internal configuration detail. Log the underlying error separately.
+ */
+export async function failJob(jobId: string, stage: string, message: string): Promise<void> {
   await db
     .update(jobs)
     .set({ status: 'failed', failedStage: stage, errorMessage: message, updatedAt: new Date() })
     .where(eq(jobs.id, jobId));
+}
+
+function fail(jobId: string, stage: string, error: unknown): Promise<void> {
+  return failJob(
+    jobId,
+    stage,
+    error instanceof Error ? error.message : 'Something went wrong during processing.',
+  );
 }
 
 /**
