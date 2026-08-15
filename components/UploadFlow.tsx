@@ -18,6 +18,34 @@ import { formatBytes } from '@/lib/format';
 
 type Phase = 'idle' | 'ready' | 'creating' | 'uploading' | 'handoff';
 
+/**
+ * Turn an upload failure into something worth reading.
+ *
+ * @vercel/blob discards the response body when the token request fails, so
+ * every server-side refusal — an unconfigured store, a duplicate upload, an
+ * unknown job — reaches the browser as the same opaque "Failed to retrieve the
+ * client token". The route records the real reason on the job before it
+ * returns, so ask the job rather than repeating the library's text.
+ */
+async function explainFailure(error: unknown, jobId: string | null): Promise<string> {
+  const fallback =
+    error instanceof Error && !/retrieve the client token/i.test(error.message)
+      ? error.message
+      : 'The upload did not finish. Check your connection and try again.';
+
+  if (!jobId) return fallback;
+
+  try {
+    const res = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
+    if (!res.ok) return fallback;
+    const { job } = (await res.json()) as { job?: { errorMessage?: string | null } };
+    return job?.errorMessage || fallback;
+  } catch {
+    // The reason lookup is a courtesy; never let it mask the original failure.
+    return fallback;
+  }
+}
+
 export function UploadFlow() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('idle');
@@ -67,6 +95,10 @@ export function UploadFlow() {
         .map((l) => l.trim())
         .filter(Boolean);
 
+    // Declared outside the try so a failure mid-upload can still ask the server
+    // what went wrong. See explainFailure.
+    let jobId: string | null = null;
+
     try {
       // 1. Create the job first, so the upload has something to attach to and
       //    a refresh mid-upload still finds a record.
@@ -92,7 +124,7 @@ export function UploadFlow() {
 
       const created = await createRes.json();
       if (!createRes.ok) throw new Error(created?.error ?? 'Could not start the job.');
-      const jobId: string = created.job.id;
+      jobId = created.job.id as string;
 
       // 2. Browser uploads straight to Blob. Nothing here touches a Function.
       setPhase('uploading');
@@ -127,11 +159,7 @@ export function UploadFlow() {
       router.push(`/jobs/${jobId}`);
     } catch (e) {
       setPhase('ready');
-      setError(
-        e instanceof Error
-          ? e.message
-          : 'The upload did not finish. Check your connection and try again.',
-      );
+      setError(await explainFailure(e, jobId));
     }
   }, [media, context, router]);
 
