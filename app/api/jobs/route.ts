@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { desc } from 'drizzle-orm';
-import { db } from '@/lib/db';
+import { db, warmUp } from '@/lib/db';
 import { jobs, type RecordingContext } from '@/lib/db/schema';
 import { planMedia } from '@/lib/media/inspect';
 import { mediaKind } from '@/lib/format';
@@ -12,7 +12,8 @@ export async function GET() {
   try {
     const rows = await db.select().from(jobs).orderBy(desc(jobs.createdAt)).limit(100);
     return NextResponse.json({ jobs: rows });
-  } catch {
+  } catch (error) {
+    console.error('[jobs] could not load history', error);
     return NextResponse.json({ error: 'Could not load history.' }, { status: 500 });
   }
 }
@@ -51,6 +52,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    // The insert itself is never retried — a repeated write is a second job.
+    // This read is, so a suspended compute is awake before the write lands.
+    await warmUp();
+
     const [job] = await db
       .insert(jobs)
       .values({
@@ -66,7 +71,8 @@ export async function POST(request: Request) {
       .returning();
 
     return NextResponse.json({ job }, { status: 201 });
-  } catch {
+  } catch (error) {
+    console.error('[jobs] could not create job', error);
     return NextResponse.json(
       { error: 'Could not start the job. The database did not respond.' },
       { status: 500 },
