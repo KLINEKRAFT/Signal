@@ -7,6 +7,7 @@ import {
   Paragraph,
   TabStopType,
   TextRun,
+  convertInchesToTwip,
 } from 'docx';
 import type { RecapDocument } from './document';
 
@@ -193,7 +194,16 @@ export async function toDocx(doc: RecapDocument): Promise<Buffer> {
     sections: [
       {
         properties: {
-          page: { margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 } },
+          page: {
+            // Stated explicitly: the library defaults to A4 (11906 × 16838
+            // twips), so leaving this out ships a European page to a US desk
+            // and the PDF and the Word file disagree about their own size.
+            size: {
+              width: convertInchesToTwip(8.5),
+              height: convertInchesToTwip(11),
+            },
+            margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 },
+          },
         },
         children,
       },
