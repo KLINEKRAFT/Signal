@@ -110,7 +110,22 @@ export async function toDocx(doc: RecapDocument): Promise<Buffer> {
           new Paragraph({
             heading: HeadingLevel.HEADING_2,
             spacing: { before: 160, after: 60 },
-            children: [new TextRun({ text: block.text, bold: true, size: 20, color: INK })],
+            children: [
+              // Numbered as literal text rather than a Word list, so the
+              // sequence matches the PDF exactly and cannot be renumbered by
+              // the editor when someone reorders or deletes an item.
+              ...(typeof block.index === 'number'
+                ? [
+                    new TextRun({
+                      text: `${String(block.index).padStart(2, '0')}  `,
+                      bold: true,
+                      size: 20,
+                      color: ACCENT,
+                    }),
+                  ]
+                : []),
+              new TextRun({ text: block.text, bold: true, size: 20, color: INK }),
+            ],
           }),
         );
         break;

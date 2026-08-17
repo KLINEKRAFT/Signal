@@ -54,14 +54,17 @@ export function RecordingContext({
         <div className="grid gap-5 border-t border-line p-4 sm:p-5">
           <Field
             label="RECORDING TITLE"
-            placeholder="Who's In Your Corner — UAD 3.6"
+            placeholder="Around the Corner: How a Differential Works"
             value={value.title}
             onChange={set('title')}
             disabled={disabled}
           />
           <Field
             label="SPEAKERS"
-            placeholder={'Bryan Sheppard — Host\nTony Pollard — Guest'}
+            placeholder={
+              'Narrator — Extremely confident 1930s educational-film gentleman\n' +
+              'Various Demonstrators — Men with gears, wheels, motorcycles, and absolutely no PowerPoint'
+            }
             value={value.speakers}
             onChange={set('speakers')}
             disabled={disabled}
@@ -70,7 +73,14 @@ export function RecordingContext({
           />
           <Field
             label="RECORDING CONTEXT"
-            placeholder="Weekly podcast discussing changes to residential appraisals."
+            placeholder={
+              'A wonderfully over-engineered 1937 educational film that sets out to explain why ' +
+              'car wheels need to turn at different speeds around a corner. Instead of simply ' +
+              'showing a differential, the presenters start with basic wheels, roll them around ' +
+              'corners, add axles, gears and motorcycles, and patiently build the entire concept ' +
+              'from scratch until you suddenly understand a piece of automotive engineering you ' +
+              'never intended to learn about.'
+            }
             value={value.description}
             onChange={set('description')}
             disabled={disabled}
@@ -78,7 +88,7 @@ export function RecordingContext({
           />
           <Field
             label="VOCABULARY / NAMES"
-            placeholder={'UAD 3.6\nFannie Mae\nCorelogic'}
+            placeholder={'Differential\nAxle\nPinion'}
             value={value.vocabulary}
             onChange={set('vocabulary')}
             disabled={disabled}

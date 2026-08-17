@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Space_Grotesk, IBM_Plex_Mono } from 'next/font/google';
+import { themeBootstrapScript } from '@/components/ThemeToggle';
 import './globals.css';
 
 const grotesk = Space_Grotesk({
@@ -23,13 +24,22 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#0a0a0a',
-  colorScheme: 'dark',
+  // One entry per scheme so the browser chrome matches whichever is showing,
+  // rather than pinning a dark bar above a light page.
+  themeColor: [
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+    { media: '(prefers-color-scheme: light)', color: '#f2f1ed' },
+  ],
+  colorScheme: 'dark light',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${grotesk.variable} ${plexMono.variable}`}>
+      <head>
+        {/* Before first paint, so a chosen light theme never flashes dark. */}
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
+      </head>
       <body className="flex min-h-dvh flex-col bg-ink text-paper antialiased">{children}</body>
     </html>
   );

@@ -26,9 +26,12 @@ function render(doc: RecapDocument, plain: boolean): string {
         out.push('', plain ? block.text.toUpperCase() : `## ${block.text}`, '');
         break;
 
-      case 'subheading':
-        out.push(plain ? block.text : `### ${block.text}`, '');
+      case 'subheading': {
+        // Two digits so 01–09 align with 10 and above in a fixed-width reader.
+        const n = typeof block.index === 'number' ? `${String(block.index).padStart(2, '0')}. ` : '';
+        out.push(plain ? `${n}${block.text}` : `### ${n}${block.text}`, '');
         break;
+      }
 
       case 'paragraph':
         out.push(block.text, '');
