@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BrandMark } from './BrandMark';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header({ current }: { current?: 'upload' | 'history' }) {
   return (
@@ -27,6 +28,9 @@ export function Header({ current }: { current?: 'upload' | 'history' }) {
           >
             History
           </Link>
+          {/* Set apart from navigation — it changes the page, not the place. */}
+          <span aria-hidden="true" className="h-3 w-px bg-line-lit" />
+          <ThemeToggle />
         </nav>
       </div>
     </header>

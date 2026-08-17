@@ -10,7 +10,10 @@ import { OUTPUT_TYPES } from '@/lib/analysis/prompts';
  */
 export type Block =
   | { type: 'heading'; text: string }
-  | { type: 'subheading'; text: string }
+  // `index` marks an item in a counted series. Set here rather than inferred by
+  // each renderer, so the numbering cannot differ between PDF, DOCX and
+  // Markdown — and so a renderer that has no use for it can simply ignore it.
+  | { type: 'subheading'; text: string; index?: number }
   | { type: 'paragraph'; text: string }
   | { type: 'bullet'; text: string }
   | { type: 'meta'; label: string; value: string }
@@ -95,21 +98,25 @@ export function buildRecapDocument(payload: JobPayload): RecapDocument {
 
   if (analysis.mostImportant.length) {
     blocks.push({ type: 'heading', text: 'What Matters Most' });
-    for (const item of analysis.mostImportant) {
-      blocks.push({ type: 'subheading', text: item.title });
+    analysis.mostImportant.forEach((item, i) => {
+      blocks.push({ type: 'subheading', text: item.title, index: i + 1 });
       blocks.push({ type: 'paragraph', text: item.explanation });
-    }
+    });
   }
 
   if (analysis.keyTakeaways.length) {
     blocks.push({ type: 'heading', text: 'Key Takeaways' });
-    for (const takeaway of analysis.keyTakeaways) {
+    analysis.keyTakeaways.forEach((takeaway, i) => {
       const stamps = takeaway.timestamps
         .map((t) => (t.endMs ? `${formatTimestamp(t.startMs)}–${formatTimestamp(t.endMs)}` : formatTimestamp(t.startMs)))
         .join(', ');
-      blocks.push({ type: 'subheading', text: stamps ? `${takeaway.title}  ·  ${stamps}` : takeaway.title });
+      blocks.push({
+        type: 'subheading',
+        text: stamps ? `${takeaway.title}  ·  ${stamps}` : takeaway.title,
+        index: i + 1,
+      });
       blocks.push({ type: 'paragraph', text: takeaway.explanation });
-    }
+    });
   }
 
   if (analysis.recommendedActions.length) {

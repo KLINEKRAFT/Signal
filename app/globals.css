@@ -2,23 +2,96 @@
 
 @theme {
   /* Monochrome, warm-shifted. Greys are tinted toward the paper hue so the
-     interface reads as an object rather than a screenshot of one. */
-  --color-ink: #0a0a0a;
-  --color-ink-raised: #101010;
-  --color-ink-sunk: #060606;
-  --color-line: #201f1d;
-  --color-line-lit: #34322d;
-  --color-paper: #f2f1ed;
-  --color-gray: #8c8880;
-  --color-gray-dim: #56534d;
-  --color-gray-faint: #302e2b;
-  --color-accent: #d6202a;
+     interface reads as an object rather than a screenshot of one.
+
+     These names are ROLES, not literal colours, and they invert between
+     themes: `ink` is always the ground and `paper` is always the mark on it,
+     so `bg-ink text-paper` is correct in both. In light mode `ink` is the
+     off-white and `paper` is near-black. Every value resolves at runtime from
+     the palette below, which is what makes the switch instant and total. */
+  --color-ink: var(--ground);
+  --color-ink-raised: var(--ground-raised);
+  --color-ink-sunk: var(--ground-sunk);
+  --color-line: var(--line);
+  --color-line-lit: var(--line-lit);
+  --color-paper: var(--mark);
+  --color-gray: var(--gray);
+  --color-gray-dim: var(--gray-dim);
+  --color-gray-faint: var(--gray-faint);
+  --color-accent: var(--accent);
 
   --font-display: var(--font-grotesk), "Helvetica Neue", Helvetica, Arial, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, "SF Mono", Menlo, monospace;
 
   --radius-none: 0px;
   --radius-xs: 2px;
+}
+
+/* ── Palette ───────────────────────────────────────────────────────────────
+   Dark is the default and the identity: an unset preference gets dark, not a
+   guess. `prefers-color-scheme: light` opts a system into light, and an
+   explicit [data-theme] beats both — which is why each block is guarded
+   against the other, so the toggle wins in either direction. */
+
+:root {
+  --ground: #0a0a0a;
+  --ground-raised: #101010;
+  --ground-sunk: #060606;
+  --line: #201f1d;
+  --line-lit: #34322d;
+  --mark: #f2f1ed;
+  --gray: #8c8880;
+  --gray-dim: #56534d;
+  --gray-faint: #302e2b;
+  --accent: #d6202a;
+  color-scheme: dark;
+}
+
+/* Light is not an inversion of the hex values — pure white glares and warm
+   greys go muddy against it. The ground lifts to the paper tone the dark theme
+   already used for text, and the greys darken by eye rather than by formula so
+   contrast holds at both ends. */
+:root {
+  --l-ground: #f2f1ed;
+  --l-ground-raised: #fbfaf7;
+  --l-ground-sunk: #e7e5e0;
+  --l-line: #d8d6d0;
+  --l-line-lit: #b9b6ae;
+  --l-mark: #14130f;
+  --l-gray: #6b675f;
+  --l-gray-dim: #928e85;
+  --l-gray-faint: #cfccc5;
+  --l-accent: #c11a24;
+}
+
+:root[data-theme='light'] {
+  --ground: var(--l-ground);
+  --ground-raised: var(--l-ground-raised);
+  --ground-sunk: var(--l-ground-sunk);
+  --line: var(--l-line);
+  --line-lit: var(--l-line-lit);
+  --mark: var(--l-mark);
+  --gray: var(--l-gray);
+  --gray-dim: var(--l-gray-dim);
+  --gray-faint: var(--l-gray-faint);
+  --accent: var(--l-accent);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --ground: var(--l-ground);
+    --ground-raised: var(--l-ground-raised);
+    --ground-sunk: var(--l-ground-sunk);
+    --line: var(--l-line);
+    --line-lit: var(--l-line-lit);
+    --mark: var(--l-mark);
+    --gray: var(--l-gray);
+    --gray-dim: var(--l-gray-dim);
+    --gray-faint: var(--l-gray-faint);
+    --accent: var(--l-accent);
+    color-scheme: light;
+  }
 }
 
 @layer base {
@@ -56,6 +129,30 @@
   input::placeholder,
   textarea::placeholder {
     color: var(--color-gray-dim);
+  }
+}
+
+/* ── Maker's mark ground ───────────────────────────────────────────────────
+   The KLINEKRAFT logo is white artwork on transparency and is used exactly as
+   supplied — never recoloured, inverted, or redrawn. In dark mode the page is
+   already the ground it needs. In light mode it would vanish, so it gets a
+   dark plate to sit on instead of having its pixels touched. */
+
+.mark-ground {
+  display: inline-flex;
+  align-items: center;
+  transition: background-color 200ms linear, padding 200ms linear;
+}
+
+:root[data-theme='light'] .mark-ground {
+  background: #0a0a0a;
+  padding: 0.3rem 0.5rem;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .mark-ground {
+    background: #0a0a0a;
+    padding: 0.3rem 0.5rem;
   }
 }
 

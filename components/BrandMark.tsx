@@ -74,17 +74,21 @@ export function MakerMark({ className = '' }: { className?: string }) {
   }
 
   return (
-    // Intrinsic dimensions are declared so the footer reserves the right space
-    // before the asset loads; `h-*`/`w-auto` then scales it from that ratio.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      ref={check}
-      src="/klinekraft-logo.png"
-      alt="KLINEKRAFT"
-      width={466}
-      height={127}
-      className={`h-4 w-auto opacity-45 transition-opacity hover:opacity-80 ${className}`}
-      onError={() => setFailed(true)}
-    />
+    // The artwork is white on transparency, so in light mode .mark-ground puts
+    // a dark plate behind it rather than recolouring the supplied file.
+    <span className={`mark-ground ${className}`}>
+      {/* Intrinsic dimensions are declared so the footer reserves the right
+          space before the asset loads; `h-*`/`w-auto` scales it from that. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={check}
+        src="/klinekraft-logo.png"
+        alt="KLINEKRAFT"
+        width={466}
+        height={127}
+        className="h-4 w-auto opacity-45 transition-opacity hover:opacity-80"
+        onError={() => setFailed(true)}
+      />
+    </span>
   );
 }

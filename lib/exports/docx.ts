@@ -7,6 +7,7 @@ import {
   Paragraph,
   TabStopType,
   TextRun,
+  convertInchesToTwip,
 } from 'docx';
 import type { RecapDocument } from './document';
 
@@ -110,7 +111,22 @@ export async function toDocx(doc: RecapDocument): Promise<Buffer> {
           new Paragraph({
             heading: HeadingLevel.HEADING_2,
             spacing: { before: 160, after: 60 },
-            children: [new TextRun({ text: block.text, bold: true, size: 20, color: INK })],
+            children: [
+              // Numbered as literal text rather than a Word list, so the
+              // sequence matches the PDF exactly and cannot be renumbered by
+              // the editor when someone reorders or deletes an item.
+              ...(typeof block.index === 'number'
+                ? [
+                    new TextRun({
+                      text: `${String(block.index).padStart(2, '0')}  `,
+                      bold: true,
+                      size: 20,
+                      color: ACCENT,
+                    }),
+                  ]
+                : []),
+              new TextRun({ text: block.text, bold: true, size: 20, color: INK }),
+            ],
           }),
         );
         break;
@@ -178,7 +194,16 @@ export async function toDocx(doc: RecapDocument): Promise<Buffer> {
     sections: [
       {
         properties: {
-          page: { margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 } },
+          page: {
+            // Stated explicitly: the library defaults to A4 (11906 × 16838
+            // twips), so leaving this out ships a European page to a US desk
+            // and the PDF and the Word file disagree about their own size.
+            size: {
+              width: convertInchesToTwip(8.5),
+              height: convertInchesToTwip(11),
+            },
+            margin: { top: 1080, bottom: 1080, left: 1080, right: 1080 },
+          },
         },
         children,
       },
